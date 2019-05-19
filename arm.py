@@ -47,4 +47,6 @@ arm_and_takeoff(5)
 time.sleep(10)
 vehicle.mode = VehicleMode("LAND")
 #vehicle.close()
+
 print("chimpi made changes")
+
