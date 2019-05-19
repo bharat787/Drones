@@ -1,4 +1,4 @@
-#/usr/bin/env python
+#/usr/bin/env python #this a comment
 # -*- coding: utf-8 -*-
 from dronekit import connect,VehicleMode,LocationGlobalRelative,Vehicle
 from pymavlink import mavutil
