@@ -1,8 +1,5 @@
-"""
-Simple script for take off and control with arrow keys
-"""
-
-
+import cv2
+import numpy as np
 import time
 import socket
 import exceptions
@@ -11,16 +8,7 @@ import argparse
 from dronekit import connect, VehicleMode, LocationGlobalRelative, Command, LocationGlobal
 from pymavlink import mavutil
 
-#- Importing Tkinter: sudo apt-get install python-tk
-import Tkinter as tk
 
-'''
-#-- Connect to the vehicle
-print('Connecting...')
-vehicle = connect('udp:127.0.0.1:14551')
-
-#-- Setup the commanded flying speed
-'''
 gnd_speed = 5 # [m/s]
 
 def connectMyCopter():
@@ -89,32 +77,53 @@ def set_velocity_body(vehicle, vx, vy, vz):
     vehicle.send_mavlink(msg)
     vehicle.flush()
     
-    
-#-- Key event function
-def key(event):
-    if event.char == event.keysym: #-- standard keys
-        if event.keysym == 'r':
-            print("r pressed >> Set the vehicle to RTL")
-            vehicle.mode = VehicleMode("RTL")
-            
-    else: #-- non standard keys
-        if event.keysym == 'Up':
-            set_velocity_body(vehicle, gnd_speed, 0, 0)
-        elif event.keysym == 'Down':
-            set_velocity_body(vehicle,-gnd_speed, 0, 0)
-        elif event.keysym == 'Left':
-            set_velocity_body(vehicle, 0, -gnd_speed, 0)
-        elif event.keysym == 'Right':
-            set_velocity_body(vehicle, 0, gnd_speed, 0)
-    
-    
-#---- MAIN FUNCTION
-#- Takeoff
+faces = cv2.CascadeClassifier("/home/bharat/Downloads/haarcascade.xml")
+
+cap = cv2.VideoCapture(0)
+font = cv2.FONT_HERSHEY_SIMPLEX
+initSize = 36000
+
+def faceTracking():
+
+	while True:
+		ret, img = cap.read()
+		gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+		face = faces.detectMultiScale(gray, 1.05, 5)
+		for x, y, w, h in face:
+		    cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+		    if x<213:
+		        cv2.putText(img, 'RIGHT', (x, y), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
+			set_velocity_body(vehicle, 0, gnd_speed, 0)
+		    elif 213 < x < 416:
+		        cv2.putText(img, 'CENTRE', (x, y), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
+			set_velocity_body(vehicle, gnd_speed, 0, 0)
+		    else:
+		        cv2.putText(img, 'LEFT', (x, y), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
+			set_velocity_body(vehicle, 0, -gnd_speed, 0)
+
+		    print(w*h)
+		    print(x, x+w)
+
+		    size1 = w*h
+		    #time.sleep(.1)
+		    size2 = w*h
+		    if size2 < 33000:
+		        cv2.putText(img, 'GOING FAR', (0, 240), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
+		    elif 330000 < size1 < 37000:
+		        cv2.putText(img, 'NO CHANGE', (0, 240), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
+		    else:
+		        cv2.putText(img, 'COMING CLOSE', (0, 240), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
+
+
+		cv2.imshow('img', img)
+		k = cv2.waitKey(30) & 0xff
+		if k == 27:
+		    break  # 27 is for escape key
+
+	cap.release()
+	cv2.destroyAllWindows()
+
 vehicle = connectMyCopter()
 arm_and_takeoff(10)
- 
-#- Read the keyboard with tkinter
-root = tk.Tk()
-print(">> Control the drone with the arrow keys. Press r for RTL mode")
-root.bind_all('<Key>', key)
-root.mainloop()
+faceTracking()
+

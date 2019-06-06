@@ -20,15 +20,21 @@ def connectMyCopter():
 	
 	if not connection_string:
 		import dronekit_sitl
-		sitl = dronekit_sitl.start_default()
-		connection_string = sitl.connection_string()
-
-	vehicle = connect(connection_string,wait_ready=True, baud=57600)
-	#vehicle = connect('127.0.0.1:14550', wait_ready=True)
+		from dronekit_sitl import SITL
+		
+		sitl = SITL()
+		sitl.download('copter', '3.3', verbose=True)
+		sitl_args = ['-I0', '--model', 'quad', '--home=28.468269,77.53859,200,353']
+		sitl.launch(sitl_args, verbose=True, await_ready=False, restart=True)
+		
+	#vehicle = connect(connection_string,wait_ready=True, baud=57600)
+	vehicle = connect('tcp:127.0.0.1:5760', wait_ready=True)
 	
 	return vehicle
 
 def arm_and_takeoff(targetHeight):
+	
+	vehicle.mode = VehicleMode("STABILIZE")
 	while vehicle.is_armable!=True:
 		print("Waiting for vehicle to become armable")
 		time.sleep(1)
@@ -51,6 +57,7 @@ def arm_and_takeoff(targetHeight):
 
 	while True:
 		print("Current altitude is: %d"%vehicle.location.global_relative_frame.alt)
+		print("current location is %s"%vehicle.location.global_relative_frame)
 		if vehicle.location.global_relative_frame.alt>=.95*targetHeight:
 			break
 		time.sleep(1)

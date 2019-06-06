@@ -6,9 +6,11 @@ import socket
 import exceptions
 import math
 import argparse
+import serial
 from pymavlink import mavutil
-#dronekit -sitl copter --home=51.945102,-2.074558,0,180
+ser = serial.Serial('/dev/ttyACM1', 9600)
 
+gnd_speed = 5
 
 ###########################FUNCTIONS##################################
 
@@ -22,7 +24,6 @@ def connectMyCopter():
 	
 	if not connection_string:
 		import dronekit_sitl
-		#dronekit-sitl copter3.3 --home=51.945102,-2.074558,0,180
 		sitl = dronekit_sitl.start_default()
 		connection_string = sitl.connection_string()
 
@@ -59,22 +60,56 @@ def arm_and_takeoff(targetHeight):
 	print("target altitude reached!!")
 	return None
 
+#-- Define the function for sending mavlink velocity command in body frame
+def set_velocity_body(vehicle, vx, vy, vz):
+    """ Remember: vz is positive downward!!!
+    http://ardupilot.org/dev/docs/copter-commands-in-guided-mode.html
+    
+    Bitmask to indicate which dimensions should be ignored by the vehicle 
+    (a value of 0b0000000000000000 or 0b0000001000000000 indicates that 
+    none of the setpoint dimensions should be ignored). Mapping: 
+    bit 1: x,  bit 2: y,  bit 3: z, 
+    bit 4: vx, bit 5: vy, bit 6: vz, 
+    bit 7: ax, bit 8: ay, bit 9:
+    
+    
+    """
+    msg = vehicle.message_factory.set_position_target_local_ned_encode(
+            0,
+            0, 0,
+            mavutil.mavlink.MAV_FRAME_BODY_NED,
+            0b0000111111000111, #-- BITMASK -> Consider only the velocities
+            0, 0, 0,        #-- POSITION
+            vx, vy, vz,     #-- VELOCITY
+            0, 0, 0,        #-- ACCELERATIONS
+            0, 0)
+    vehicle.send_mavlink(msg)
+    vehicle.flush()
+   
+def getDist():
+	b = ser.readline()
+	try:		
+		return int(b,10)
+	except:
+		return 0
+ 
+#-- Collsion detection
+def collision():
+	dist  = getDist()
+	print(dist)
+	if dist <= 60:
+		set_velocity_body(vehicle,-gnd_speed, 0, 0)
+
+
 ###########################MAIN exec###################################
 vehicle = connectMyCopter()
 print("HOME!!!!%s " % vehicle.home_location)
-
+#vehicle.home_location=vehicle.location.global_frame
 #vehicle.location.global_relative_frame = (15.393963,73.883284,0,180)
-#vehicle.home_location=(15.393963,73.883284,0,180)#vehicle.location.global_frame
-#--start_location = LocationGlobal(51.945102, -2.074558, 10)
-
-#--vehicle.home_location = start_location
-#dronekit -sitl --home=51.945102,-2.074558,0,180
 
 wpHome = vehicle.location.global_relative_frame
-#wpHome = (44.501375,-88.062645,15)
-print(type(wpHome.lat))
-'''cmd1=Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,0,0,0,0,wpHome.lat,wpHome.lon,wpHome.alt)'''
-cmd1=Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,0,0,0,0,44.501375,-88.062645,15)
+
+cmd1=Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,0,0,0,0,wpHome.lat,wpHome.lon,wpHome.alt)
 cmd2=Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,0,0,0,0,44.501375,-88.062645,15)
 cmd3=Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,mavutil.mavlink.MAV_CMD_NAV_WAYPOINT, 0, 0,0,0,0,0,44.501746,-88.062242,10)
 cmd4=Command(0, 0, 0, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,mavutil.mavlink.MAV_CMD_NAV_RETURN_TO_LAUNCH, 0, 0,0,0,0,0,0,0,0)
@@ -91,7 +126,7 @@ cmds.add(cmd3)
 cmds.add(cmd4)
 
 vehicle.commands.upload()
-vehicle.groundspeed = 1000
+
 arm_and_takeoff(10)
 
 print("after arm and takeoff")
@@ -100,7 +135,8 @@ while vehicle.mode !="AUTO":
 	time.sleep(.2)
 
 while vehicle.location.global_relative_frame.alt>2:
-	print("Drone is executing mission, but we can still run the code")
+	#print("Drone is executing mission, but we can still run the code")
+	collision()
 	time.sleep(.2)
 
 

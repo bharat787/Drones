@@ -2,6 +2,7 @@
 
 print ("Start simulator (SITL)")
 import dronekit_sitl
+dronekit-sitl copter --home=51.945102,-2.074558,0,180
 sitl = dronekit_sitl.start_default()
 connection_string = sitl.connection_string()
 

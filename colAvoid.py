@@ -1,27 +1,15 @@
-"""
-Simple script for take off and control with arrow keys
-"""
-
-
 import time
 import socket
 import exceptions
 import math
 import argparse
+import serial
 from dronekit import connect, VehicleMode, LocationGlobalRelative, Command, LocationGlobal
 from pymavlink import mavutil
 
-#- Importing Tkinter: sudo apt-get install python-tk
-import Tkinter as tk
+ser = serial.Serial('/dev/ttyACM1', 9600)
 
-'''
-#-- Connect to the vehicle
-print('Connecting...')
-vehicle = connect('udp:127.0.0.1:14551')
-
-#-- Setup the commanded flying speed
-'''
-gnd_speed = 5 # [m/s]
+gnd_speed = 5
 
 def connectMyCopter():
 	
@@ -39,6 +27,15 @@ def connectMyCopter():
 	vehicle = connect(connection_string,wait_ready=True)
 	
 	return vehicle
+
+#-- Get distance from arduino
+def getDist():
+	b = ser.readline()
+	try:		
+		return int(b,10)
+	except:
+		return 0
+
 #-- Define arm and takeoff
 def arm_and_takeoff(altitude):
 
@@ -62,8 +59,8 @@ def arm_and_takeoff(altitude):
           print("Target altitude reached")
           break
       time.sleep(1)
-      
- #-- Define the function for sending mavlink velocity command in body frame
+
+#-- Define the function for sending mavlink velocity command in body frame
 def set_velocity_body(vehicle, vx, vy, vz):
     """ Remember: vz is positive downward!!!
     http://ardupilot.org/dev/docs/copter-commands-in-guided-mode.html
@@ -89,32 +86,21 @@ def set_velocity_body(vehicle, vx, vy, vz):
     vehicle.send_mavlink(msg)
     vehicle.flush()
     
-    
-#-- Key event function
-def key(event):
-    if event.char == event.keysym: #-- standard keys
-        if event.keysym == 'r':
-            print("r pressed >> Set the vehicle to RTL")
-            vehicle.mode = VehicleMode("RTL")
-            
-    else: #-- non standard keys
-        if event.keysym == 'Up':
-            set_velocity_body(vehicle, gnd_speed, 0, 0)
-        elif event.keysym == 'Down':
-            set_velocity_body(vehicle,-gnd_speed, 0, 0)
-        elif event.keysym == 'Left':
-            set_velocity_body(vehicle, 0, -gnd_speed, 0)
-        elif event.keysym == 'Right':
-            set_velocity_body(vehicle, 0, gnd_speed, 0)
-    
-    
+#-- Collsion detection
+def collision():
+	dist  = getDist()
+	print(dist)
+	if dist <= 10:
+		set_velocity_body(vehicle,-gnd_speed, 0, 0)
+
+
 #---- MAIN FUNCTION
 #- Takeoff
 vehicle = connectMyCopter()
 arm_and_takeoff(10)
- 
-#- Read the keyboard with tkinter
-root = tk.Tk()
-print(">> Control the drone with the arrow keys. Press r for RTL mode")
-root.bind_all('<Key>', key)
-root.mainloop()
+
+#-- collsion detection ON
+while True:
+	collision()
+
+
