@@ -7,21 +7,20 @@ import math
 import argparse
 from dronekit import connect, VehicleMode, LocationGlobalRelative, Command, LocationGlobal
 from pymavlink import mavutil
+from multiprocessing import Value
 
 
-ser = serial.Serial('/dev/ttyACM1', 9600)
+#ser = serial.Serial('/dev/ttyACM1', 9600)                                            # Serial port connection for comms b/w sensor and USB
 
 font = cv2.FONT_HERSHEY_SIMPLEX
 
-video = cv2.VideoCapture(0)
+video = cv2.VideoCapture(0)                                                           # Start camera
 
-face_cascade = cv2.CascadeClassifier("/home/bharat/Downloads/haarcascade.xml")
+face_cascade = cv2.CascadeClassifier("/home/bharat/Downloads/haarcascade.xml")        # face detection xml file
 
-gnd_speed = 5
+gnd_speed = 5                                                                         # ground speed for drone
 
-direc = "cs"
-
-def connectMyCopter():
+def connectMyCopter():                                                                # connecting drone to computer
 	
 	parser = argparse.ArgumentParser(description='commands')
 	parser.add_argument('--connect')
@@ -38,9 +37,7 @@ def connectMyCopter():
 	
 	return vehicle
 
-def cv():
-
-    global direc
+def cv():                                                                             # face detection function
 
     while True:
     
@@ -55,38 +52,28 @@ def cv():
 
             if x<213:
                 cv2.putText(img, 'RIGHT', (x, y), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
-                direc = "right"
-                #print(direc)
+                direc.value = 1
 
             elif 213 < x < 416:
                 cv2.putText(img, 'CENTRE', (x, y), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
-                direc = "centre"
-                #print(direc)
-
+                direc.value = 2
+                
             else:
                 cv2.putText(img, 'LEFT', (x, y), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
-                direc = "left"
-                #print(direc)
+                direc.value = 3
             
         cv2.imshow("face", frame)
-        print direc
-        return direc
-
+        
         key = cv2.waitKey(1)
         if key == ord('q'):
             break
-        '''
-        if direc == "None":
-            return "cs"
-        else:
-            return direc
-        '''
+        
     video.release()
 
     cv2.destroyAllWindows()
 
 #-- Define arm and takeoff
-def arm_and_takeoff(altitude):
+def arm_and_takeoff(altitude):                                                        # arm and takeoff the drone to predefined altitude (5 meters) 
 
    while not vehicle.is_armable:
       print("waiting to be armable")
@@ -96,7 +83,8 @@ def arm_and_takeoff(altitude):
    vehicle.mode = VehicleMode("GUIDED")
    vehicle.armed = True
 
-   while not vehicle.armed: time.sleep(1)
+   while not vehicle.armed: 
+       time.sleep(1)
 
    print("Taking Off")
    vehicle.simple_takeoff(altitude)
@@ -110,7 +98,7 @@ def arm_and_takeoff(altitude):
       time.sleep(1)
 
 #-- Define the function for sending mavlink velocity command in body frame
-def set_velocity_body(vehicle, vx, vy, vz):
+def set_velocity_body(vehicle, vx, vy, vz):                                           # send direction to drone 
     """ Remember: vz is positive downward!!!
     http://ardupilot.org/dev/docs/copter-commands-in-guided-mode.html
     
@@ -136,8 +124,10 @@ def set_velocity_body(vehicle, vx, vy, vz):
     vehicle.flush()
 
 
-def collision():
-    
+def collision():                                                                      # detect collision
+
+    return 10
+    '''
     #while True:
         b = ser.readline()
         try:		
@@ -146,25 +136,21 @@ def collision():
         except:
             return 0
             #distance = 0
-    
-    #return 40
-
-def getDir():
-    #global direc
-    d = direc
-    return d
+    '''
+    #eturn 40
 
 if __name__ == "__main__":
+    
+    direc = Value('d', 0)                                                             # initializing direction value 0-> no val 1->right 2->centre 3->left
 
-    #global direc
-    p1 = multiprocessing.Process(target=cv)
+    p1 = multiprocessing.Process(target=cv)                                           # assigning parallel processes to detect faces and collision simultaneously
     p2 = multiprocessing.Process(target=collision)
 
 
     p1.start()
     p2.start()
 
-    loc = [28.46951466793185,77.53698735091803]
+    loc = [28.46951466793185,77.53698735091803]                                       # vehicle home location
     vehicle = connectMyCopter()
     arm_and_takeoff(5)
 
@@ -172,20 +158,16 @@ if __name__ == "__main__":
     vehicle.simple_goto(pt1)
 
     while True:
-        print num
-        #global direc
+        print("the direction i'm receiving is " ,direc.value)
+        
         d = collision()
-        print(d)
-        #cv()
+        
         if d< 20:
             print('collsion')
             
-            print(getDir())
             set_velocity_body(vehicle, 0, gnd_speed, 0)
-            # time.sleep(2)
+            
             vehicle.simple_goto(pt1)
-        #else:
-        #     display()
 
         print vehicle.location.global_relative_frame.lat, vehicle.location.global_relative_frame.lon
         
@@ -195,9 +177,4 @@ if __name__ == "__main__":
             break 
         else:
             print 'not reached'
-    '''
-    while True:
-        distance = collision()
-        direc = cv()
-        print(distance, direc)
-    '''    
+       
