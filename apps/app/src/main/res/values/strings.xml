@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">DroneControl</string>
+    <string name="Hover">hover</string>
+    <string name="Send_To">Send To</string>
+    <string name="Track_Object">Track Object</string>
+    <string name="Enter_height">Enter height</string>
+    <string name="height_button">ok</string>
+    <string name="title_activity_maps">Map</string>
+
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="enter_height">Enter altitude</string>
+    <string name="altitude">Enter Altitude</string>
+</resources>
