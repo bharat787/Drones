@@ -5,39 +5,10 @@ import exceptions
 import math
 import argparse
 import serial
-import cv2
-import numpy as np
 from pymavlink import mavutil
-
-ser = serial.Serial('/dev/ttyACM1', 9600) #--for port selection
-
-gnd_speed =5 #--fixed speed when using set_velocity_body
+ser = serial.Serial('/dev/ttyACM1', 9600)
+gnd_speed =5
 #---------------------------------------------------------------------------
-
-faces = cv2.CascadeClassifier("/home/bharat/Downloads/haarcascade.xml")
-
-cap = cv2.VideoCapture(0)
-font = cv2.FONT_HERSHEY_SIMPLEX
-
-def display():
-    ret, img = cap.read()
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    face = faces.detectMultiScale(gray, 1.05, 5)
-    for x, y, w, h in face:
-        cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
-        if x<213:
-            cv2.putText(img, 'RIGHT', (x, y), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
-        elif 213 < x < 416:
-            cv2.putText(img, 'CENTRE', (x, y), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
-        else:
-             cv2.putText(img, 'LEFT', (x, y), font, 1, (0, 255, 0), 2, cv2.LINE_AA)
-
-    cv2.imshow('img', img)
-    # = cv2.waitKey(30) & 0xff
-    #if k == 27:
-     #       break  # 27 is for escape key
-#---------------------------------------------------------------------------
-
 def connectMyCopter():
 
     parser = argparse.ArgumentParser(description='commands')
@@ -140,33 +111,29 @@ def set_velocity_body(vehicle, vx, vy, vz):
 #loc = [float(x) for x in raw_input("What are the lat, long, alt of detination ").split(',')]
 #loc = [28.468995493868242,77.53812865002897]
 loc = [28.46951466793185,77.53698735091803]
+wps = [[28.468995493868242,77.53812865002897],[28.469080376916477,77.53770150824334],[28.46951466793185,77.53698735091803]]
 vehicle = connectMyCopter()
 arm_and_takeoff(5)
 
-pt1 = LocationGlobalRelative(loc[0], loc[1], 10)
-vehicle.simple_goto(pt1)
+for i in range(3):
+    pt1 = LocationGlobalRelative(wps[i][0], wps[i][1], 10)
+    vehicle.simple_goto(pt1)
 
-while True:
-    d = getDist()
-    print(d)
-    if d< 20:
-        print('collsion')
-        set_velocity_body(vehicle, 0, gnd_speed, 0)
-        # time.sleep(2)
-        vehicle.simple_goto(pt1)
-    #else:
-    #     display()
+    while True:
+        d = getDist()
+        print d
+        if d< 20:
+            print('collsion')
+            set_velocity_body(vehicle, 0, gnd_speed, 0)
+            # time.sleep(2)
+            vehicle.simple_goto(pt1)
 
-    print vehicle.location.global_relative_frame.lat, vehicle.location.global_relative_frame.lon
-    
-
-    if round(vehicle.location.global_relative_frame.lat,5) == 28.46899 and round(vehicle.location.global_frame.lon,5) == 77.53813:
-        print 'reached'
-        break 
-    else:
-        print 'not reached'
-
-
+        print vehicle.location.global_relative_frame.lat, vehicle.location.global_relative_frame.lon
+        if round(vehicle.location.global_relative_frame.lat,5) == round(wps[i][0],5) and round(vehicle.location.global_frame.lon,5) == round(wps[i][1], 5):
+            print 'reached'
+            break 
+        else:
+            print 'not reached'
 
 '''
 for i in range(30):
